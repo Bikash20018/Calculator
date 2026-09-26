@@ -40,11 +40,14 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: ilammy/msvc-dev-cmd@v1
-      - name: Build calci
-        run: cl /nologo /std:c11 /W4 /WX /O2 /Fecalci.exe src\main.c src\calc.c
-      - name: Build the unit tests
-        run: cl /nologo /std:c11 /W4 /WX /O2 /Isrc /Fetest_calc.exe tests\test_calc.c src\calc.c
+      - name: Build with MSVC
+        shell: cmd
+        run: |
+          for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VSINSTALL=%%i"
+          call "%VSINSTALL%\VC\Auxiliary\Build\vcvars64.bat" >nul
+          where cl >nul || exit /b 1
+          cl /nologo /std:c11 /W4 /WX /O2 /Fecalci.exe src\main.c src\calc.c src\editor.c src\term.c || exit /b 1
+          cl /nologo /std:c11 /W4 /WX /O2 /Isrc /Fetest_calc.exe tests\test_calc.c src\calc.c || exit /b 1
       - name: Run the unit tests
         run: .\test_calc.exe
       - name: Run the command-line tests

@@ -91,8 +91,34 @@ check 'error shows the expression and a caret' \
     [ "$err" = "$(lines 'calci: error: expected a number\n    2 + * 3\n        ^')" ]
 
 run '' "$(lines '1\t/ 0')"
-check 'caret lines up after a tab' \
-    [ "$err" = "$(lines 'calci: error: division by zero\n    1\t/ 0\n     \t^')" ]
+check 'marks line up after a tab' \
+    [ "$err" = "$(lines 'calci: error: division by zero\n    1\t/ 0\n    ~\t^ ~')" ]
+
+run '' '10 / (5 - 5)'
+check 'operands are underlined' \
+    [ "$err" = "$(lines 'calci: error: division by zero\n    10 / (5 - 5)\n    ~~ ^ ~~~~~~~')" ]
+
+run '' 'sqr(2)'
+check 'unknown names get a suggestion' \
+    [ "$err" = "$(lines 'calci: error: unknown function or constant\n    sqr(2)\n    ^~~\n    hint: did you mean sqrt?')" ]
+
+run '' '2pi'
+check 'hint for a missing *' contains "$err" 'hint: use * to multiply: 2 * pi'
+run '' 'sqrt 4'
+check 'hint for a missing (' contains "$err" 'hint: write sqrt(4)'
+run '' '1,5'
+check 'hint for a decimal comma' contains "$err" 'hint: use . as the decimal point'
+run '' '(-8) ^ (1/3)'
+check 'hint for cube roots' contains "$err" 'hint: for real cube roots, use cbrt(x)'
+run '' '1 / 0'
+check 'no colors when not writing to a terminal' eval \
+    '! contains "$out$err" "$(printf "\033")"'
+
+run '' '2 + 2 ='
+expect 'a final = is accepted' 0 4
+
+run '' -- '--pi'
+expect '"--" makes an option-like word an expression' 0 3.14159265358979
 
 run '' "$(lines '1 \033 2')"
 check 'control characters are not echoed' contains "$err" '    1 ? 2'
@@ -107,8 +133,17 @@ for option in --help -h; do
     run '' "$option"
     check "$option exits with 0" [ "$status" = 0 ]
     check "$option shows the usage" contains "$out" 'Usage: calci'
-    check "$option shows the reference" contains "$out" 'Functions:'
+    check "$option shows the reference" contains "$out" 'Functions   abs'
 done
+
+for option in --version -v; do
+    run '' "$option"
+    expect "$option" 0 'calci 1.0.0'
+done
+
+run '' --colour
+check 'unknown options exit with 2' [ "$status" = 2 ]
+check 'unknown options are named' contains "$err" "unknown option '--colour'"
 
 # --- Expressions on standard input ------------------------------------------
 
@@ -146,7 +181,13 @@ expect 'exit, in any case and with blanks' 0 1
 
 run 'help\n'
 check 'help exits with 0' [ "$status" = 0 ]
-check 'help prints the reference' contains "$out" 'Functions:'
+check 'help prints the reference' contains "$out" 'Functions   abs'
+
+run 'clear\ncls\n1\n'
+expect 'clear does nothing outside a terminal' 0 1
+
+run '6 \303\227 7\n84 \303\267 2\n50 \342\210\222 8\n2 \303\227 \317\200\n'
+expect 'typographic symbols' 0 "$(lines '42\n42\n42\n6.28318530717959')"
 
 run "$(printf '%04095d' 0)\n"
 expect 'longest line allowed' 0 0
