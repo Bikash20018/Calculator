@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="676" height="442" viewBox="0 0 676 442" role="img" aria-label="A calci session in a terminal">
+<style>text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;font-size:14px;white-space:pre}</style>
+<rect width="676" height="442" rx="10" fill="#1e1e2e"/>
+<circle cx="22" cy="20" r="6" fill="#f38ba8"/><circle cx="42" cy="20" r="6" fill="#f9e2af"/><circle cx="62" cy="20" r="6" fill="#a6e3a1"/>
+<text x="338" y="25" fill="#6c7086" text-anchor="middle" style="font-size:12px">calci</text>
+<text x="18" y="58" xml:space="preserve"><tspan fill="#cdd6f4" font-weight="bold">calci</tspan><tspan fill="#cdd6f4"> </tspan><tspan fill="#cdd6f4" opacity="0.55">1.0.0 - command-line calculator</tspan></text>
+<text x="18" y="78" xml:space="preserve"><tspan fill="#cdd6f4" opacity="0.55">Enter an expression. Type &quot;help&quot; for the reference or &quot;quit&quot; to exit.</tspan></text>
+<text x="18" y="98" xml:space="preserve"></text>
+<text x="18" y="118" xml:space="preserve"><tspan fill="#89dceb" font-weight="bold">&gt;</tspan><tspan fill="#cdd6f4"> (2 + 3) * 4</tspan></text>
+<text x="18" y="138" xml:space="preserve"><tspan fill="#cdd6f4" opacity="0.55">=</tspan><tspan fill="#cdd6f4"> </tspan><tspan fill="#a6e3a1" font-weight="bold">20</tspan></text>
+<text x="18" y="158" xml:space="preserve"><tspan fill="#89dceb" font-weight="bold">&gt;</tspan><tspan fill="#cdd6f4"> 2 ^ 10</tspan></text>
+<text x="18" y="178" xml:space="preserve"><tspan fill="#cdd6f4" opacity="0.55">=</tspan><tspan fill="#cdd6f4"> </tspan><tspan fill="#a6e3a1" font-weight="bold">1024</tspan></text>
+<text x="18" y="198" xml:space="preserve"><tspan fill="#89dceb" font-weight="bold">&gt;</tspan><tspan fill="#cdd6f4"> ans / 3</tspan></text>
+<text x="18" y="218" xml:space="preserve"><tspan fill="#cdd6f4" opacity="0.55">=</tspan><tspan fill="#cdd6f4"> </tspan><tspan fill="#a6e3a1" font-weight="bold">341.333333333333</tspan></text>
+<text x="18" y="238" xml:space="preserve"><tspan fill="#89dceb" font-weight="bold">&gt;</tspan><tspan fill="#cdd6f4"> sqrt(2) / 2</tspan></text>
+<text x="18" y="258" xml:space="preserve"><tspan fill="#cdd6f4" opacity="0.55">=</tspan><tspan fill="#cdd6f4"> </tspan><tspan fill="#a6e3a1" font-weight="bold">0.707106781186548</tspan></text>
+<text x="18" y="278" xml:space="preserve"><tspan fill="#89dceb" font-weight="bold">&gt;</tspan><tspan fill="#cdd6f4"> 10 / (5 - 5)</tspan></text>
+<text x="18" y="298" xml:space="preserve"><tspan fill="#f38ba8" font-weight="bold">  ~~ ^ ~~~~~~~ error:</tspan><tspan fill="#cdd6f4"> </tspan><tspan fill="#cdd6f4" font-weight="bold">division by zero</tspan></text>
+<text x="18" y="318" xml:space="preserve"><tspan fill="#89dceb" font-weight="bold">&gt;</tspan><tspan fill="#cdd6f4"> sqr(2)</tspan></text>
+<text x="18" y="338" xml:space="preserve"><tspan fill="#f38ba8" font-weight="bold">  ^~~ error:</tspan><tspan fill="#cdd6f4"> </tspan><tspan fill="#cdd6f4" font-weight="bold">unknown function or constant</tspan></text>
+<text x="18" y="358" xml:space="preserve"><tspan fill="#cdd6f4">      </tspan><tspan fill="#89dceb" font-weight="bold">hint:</tspan><tspan fill="#cdd6f4"> did you mean sqrt?</tspan></text>
+<text x="18" y="378" xml:space="preserve"><tspan fill="#89dceb" font-weight="bold">&gt;</tspan><tspan fill="#cdd6f4"> 6 × 7 =</tspan></text>
+<text x="18" y="398" xml:space="preserve"><tspan fill="#cdd6f4" opacity="0.55">=</tspan><tspan fill="#cdd6f4"> </tspan><tspan fill="#a6e3a1" font-weight="bold">42</tspan></text>
+<text x="18" y="418" xml:space="preserve"><tspan fill="#89dceb" font-weight="bold">&gt;</tspan></text>
+<rect x="34.9" y="405" width="8.4" height="17" fill="#cdd6f4" opacity="0.8"/>
+</svg>
