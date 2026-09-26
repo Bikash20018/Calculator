@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  unix:
+    name: ${{ matrix.os }} (${{ matrix.cc }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, cc: gcc }
+          - { os: ubuntu-latest, cc: clang }
+          - { os: macos-latest, cc: clang }
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build and test
+        run: make test CC=${{ matrix.cc }} CFLAGS="-O2 -Werror"
+
+  sanitizers:
+    name: ubuntu-latest (gcc, AddressSanitizer + UBSan)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build and test with sanitizers
+        run: >-
+          make test CC=gcc
+          CFLAGS="-O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined
+          -fno-sanitize-recover=all -Werror"
+
+  windows:
+    name: windows-latest (MSVC)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build with MSVC
+        shell: cmd
+        run: |
+          for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VSINSTALL=%%i"
+          call "%VSINSTALL%\VC\Auxiliary\Build\vcvars64.bat" >nul
+          where cl >nul || exit /b 1
+          cl /nologo /std:c11 /W4 /WX /O2 /Fecalci.exe src\main.c src\calc.c src\editor.c src\term.c || exit /b 1
+          cl /nologo /std:c11 /W4 /WX /O2 /Isrc /Fetest_calc.exe tests\test_calc.c src\calc.c || exit /b 1
+      - name: Run the unit tests
+        run: .\test_calc.exe
+      - name: Run the command-line tests
+        shell: bash
+        run: sh tests/cli.sh ./calci.exe

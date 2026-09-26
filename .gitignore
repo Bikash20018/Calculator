@@ -1,0 +1,9 @@
+# Build products
+/calci
+/calci.exe
+/tests/test_calc
+/tests/test_calc.exe
+*.o
+*.obj
+*.pdb
+*.ilk
