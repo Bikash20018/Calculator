@@ -158,7 +158,9 @@ check 'overlong line is reported' \
 
 # --- Output errors ----------------------------------------------------------
 
-if [ -w /dev/full ]; then
+# Linux's /dev/full makes every write fail. Git Bash on Windows has a
+# /dev/full too, but native Windows programs can write to it without error.
+if [ "$(uname -s)" = Linux ] && [ -w /dev/full ]; then
     "$calci" '1 + 1' >/dev/full 2>"$tmp/err"
     status=$?
     out=''
