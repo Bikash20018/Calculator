@@ -126,7 +126,7 @@ static editor_completer completer = NULL;
 static void leave_raw_mode(void)
 {
     if (in_raw_mode) {
-        tcsetattr(STDIN_FILENO, TCSADRAIN, &original_mode);
+        tcsetattr(STDIN_FILENO, TCSANOW, &original_mode);
         in_raw_mode = 0;
     }
 }
@@ -186,9 +186,11 @@ static bool enter_raw_mode(void)
     raw.c_cc[VTIME] = 0;
 
     /* Flag first, so that a signal arriving meanwhile still restores the
-     * mode; and TCSADRAIN, not TCSAFLUSH, to keep keys typed ahead. */
+     * mode. TCSANOW, because TCSAFLUSH would drop keys typed ahead, and it
+     * and TCSADRAIN wait for output to drain, which on some systems (macOS)
+     * means waiting for the terminal to read it: they could hang. */
     in_raw_mode = 1;
-    if (tcsetattr(STDIN_FILENO, TCSADRAIN, &raw) == -1) {
+    if (tcsetattr(STDIN_FILENO, TCSANOW, &raw) == -1) {
         in_raw_mode = 0;
         return false;
     }
