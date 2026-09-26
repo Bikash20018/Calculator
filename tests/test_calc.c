@@ -51,6 +51,44 @@ static void check_error(int line, const char *expression, calc_status status,
     }
 }
 
+/* Checks the whole location of an error: the offending token, and the
+ * construct around it. */
+static void check_span(int line, const char *expression, calc_status status,
+                       size_t offset, size_t length, size_t start, size_t end)
+{
+    const calc_result r = calc_evaluate(expression, 0.0);
+
+    checks++;
+    if (r.status != status || r.error_offset != offset ||
+        r.error_length != length || r.error_start != start ||
+        r.error_end != end) {
+        failures++;
+        printf("test_calc.c:%d: \"%s\": expected \"%s\" at %lu+%lu in "
+               "[%lu, %lu), got \"%s\" at %lu+%lu in [%lu, %lu)\n",
+               line, expression, calc_status_message(status),
+               (unsigned long)offset, (unsigned long)length,
+               (unsigned long)start, (unsigned long)end,
+               calc_status_message(r.status), (unsigned long)r.error_offset,
+               (unsigned long)r.error_length, (unsigned long)r.error_start,
+               (unsigned long)r.error_end);
+    }
+}
+
+static void check_suggestion(int line, const char *word, const char *expected)
+{
+    const char *suggestion = calc_suggest_name(word, strlen(word));
+
+    checks++;
+    if (expected == NULL ? suggestion != NULL
+                         : suggestion == NULL ||
+                               strcmp(suggestion, expected) != 0) {
+        failures++;
+        printf("test_calc.c:%d: suggestion for \"%s\": expected %s, got %s\n",
+               line, word, expected != NULL ? expected : "none",
+               suggestion != NULL ? suggestion : "none");
+    }
+}
+
 static void check_format(int line, double value, const char *expected)
 {
     char text[CALC_FORMAT_SIZE];
@@ -80,6 +118,10 @@ static void check(int line, int condition, const char *description)
     check_value(__LINE__, expression, ans, expected)
 #define EXPECT_ERROR(expression, status, offset) \
     check_error(__LINE__, expression, status, offset)
+#define EXPECT_SPAN(expression, status, offset, length, start, end) \
+    check_span(__LINE__, expression, status, offset, length, start, end)
+#define EXPECT_SUGGESTION(word, expected) \
+    check_suggestion(__LINE__, word, expected)
 #define EXPECT_FORMAT(value, expected) \
     check_format(__LINE__, value, expected)
 #define EXPECT(condition) check(__LINE__, (condition), #condition)
@@ -196,7 +238,7 @@ static void test_syntax_errors(void)
 
     EXPECT_ERROR("2 $ 3", CALC_ERR_INVALID_CHAR, 2);
     EXPECT_ERROR("2,5", CALC_ERR_INVALID_CHAR, 1);
-    EXPECT_ERROR("5 \xC3\x97 3", CALC_ERR_INVALID_CHAR, 2); /* UTF-8 "x" */
+    EXPECT_ERROR("5 \xE2\x82\xAC 3", CALC_ERR_INVALID_CHAR, 2); /* euro sign */
 
     EXPECT_ERROR("1.2.3", CALC_ERR_INVALID_NUMBER, 0);
     EXPECT_ERROR("1 + .", CALC_ERR_INVALID_NUMBER, 4);
@@ -279,6 +321,113 @@ static void test_error_precedence(void)
     EXPECT_ERROR("sqrt(-1) ^ 0", CALC_ERR_DOMAIN, 0);
 }
 
+static void test_friendly_input(void)
+{
+    /* A final "=", as on a pocket calculator. */
+    EXPECT_VALUE("2 + 2 =", 4);
+    EXPECT_VALUE("2 + 2 =  ", 4);
+    EXPECT_VALUE("(1 + 2) * 3=", 9);
+    EXPECT_ERROR("=", CALC_ERR_EMPTY, 0);
+    EXPECT_ERROR("2 + =", CALC_ERR_EXPECTED_OPERAND, 4);
+    EXPECT_ERROR("2 = 2", CALC_ERR_INVALID_CHAR, 2);
+    EXPECT_ERROR("2 ==", CALC_ERR_INVALID_CHAR, 2);
+
+    /* Typographic symbols, as pasted from documents. */
+    EXPECT_VALUE("6 \xC3\x97 7", 42);          /* multiplication sign */
+    EXPECT_VALUE("6\xC3\x97" "7", 42);
+    EXPECT_VALUE("84 \xC3\xB7 2", 42);         /* division sign */
+    EXPECT_VALUE("50 \xE2\x88\x92 8", 42);     /* minus sign */
+    EXPECT_VALUE("\xE2\x88\x92" "5", -5);
+    EXPECT_VALUE("\xCF\x80", PI);               /* pi */
+    EXPECT_VALUE("2 \xC3\x97 \xCF\x80", 2 * PI);
+    EXPECT_ERROR("2\xCF\x80", CALC_ERR_EXPECTED_OPERATOR, 1);
+    EXPECT_ERROR("1 \xC3\xB7 0", CALC_ERR_DIVISION_BY_ZERO, 2);
+
+    EXPECT_VALUE("log10(1000)", 3);
+}
+
+static void test_error_spans(void)
+{
+    /* Syntax errors: the offending token. */
+    EXPECT_SPAN("sqr(2)", CALC_ERR_UNKNOWN_NAME, 0, 3, 0, 3);
+    EXPECT_SPAN("1 + 1.2.3", CALC_ERR_INVALID_NUMBER, 4, 5, 4, 9);
+    EXPECT_SPAN("2pi", CALC_ERR_INVALID_NUMBER, 0, 3, 0, 3);
+    EXPECT_SPAN("1e+5e", CALC_ERR_INVALID_NUMBER, 0, 5, 0, 5);
+    EXPECT_SPAN("2 34", CALC_ERR_EXPECTED_OPERATOR, 2, 2, 2, 4);
+    EXPECT_SPAN("2 +", CALC_ERR_EXPECTED_OPERAND, 3, 0, 3, 3);
+    EXPECT_SPAN("sqrt 4", CALC_ERR_EXPECTED_LPAREN, 5, 1, 5, 6);
+    EXPECT_SPAN("5 \xE2\x82\xAC 3", CALC_ERR_INVALID_CHAR, 2, 3, 2, 5);
+    EXPECT_SPAN("\xE2\x82", CALC_ERR_INVALID_CHAR, 0, 2, 0, 2); /* cut short */
+
+    /* Math errors: the operator or function, and all of the operation. */
+    EXPECT_SPAN("10 / (5 - 5)", CALC_ERR_DIVISION_BY_ZERO, 3, 1, 0, 12);
+    EXPECT_SPAN("1 + 2 * 3 / 0", CALC_ERR_DIVISION_BY_ZERO, 10, 1, 4, 13);
+    EXPECT_SPAN("-(1 % 0)", CALC_ERR_DIVISION_BY_ZERO, 4, 1, 2, 7);
+    EXPECT_SPAN("2 * 10 ^ 400", CALC_ERR_RANGE, 7, 1, 4, 12);
+    EXPECT_SPAN("(-2) ^ 0.5", CALC_ERR_DOMAIN, 5, 1, 0, 10);
+    EXPECT_SPAN("1 + sqrt(-1)", CALC_ERR_DOMAIN, 4, 4, 4, 12);
+    EXPECT_SPAN("1 + sqrt ( -1 ) * 2", CALC_ERR_DOMAIN, 4, 4, 4, 15);
+    EXPECT_SPAN("2 * 1e999", CALC_ERR_RANGE, 4, 5, 4, 9);
+    EXPECT_SPAN("6 \xC3\xB7 0", CALC_ERR_DIVISION_BY_ZERO, 2, 2, 0, 6);
+}
+
+static void test_name_list(void)
+{
+    const char *name;
+    bool is_function = false;
+    size_t i, functions = 0, constants = 0;
+
+    for (i = 0; (name = calc_name(i, &is_function)) != NULL; i++) {
+        const calc_result r = calc_evaluate(name, 1.0);
+
+        /* Every listed name must be understood: constants on their own,
+         * functions with an argument. */
+        if (is_function) {
+            char call[32];
+
+            functions++;
+            EXPECT(r.status == CALC_ERR_EXPECTED_LPAREN);
+            snprintf(call, sizeof call, "%s(1)", name);
+            EXPECT(calc_evaluate(call, 0.0).status == CALC_OK);
+        } else {
+            constants++;
+            EXPECT(r.status == CALC_OK);
+        }
+    }
+    EXPECT(functions == 17);
+    EXPECT(constants == 3);
+    EXPECT(calc_name(0, NULL) != NULL && strcmp(calc_name(0, NULL), "abs") == 0);
+    EXPECT(calc_name(i, NULL) == NULL);
+    EXPECT(calc_name((size_t)-1, NULL) == NULL);
+}
+
+static void test_suggestions(void)
+{
+    EXPECT_SUGGESTION("sqr", "sqrt");
+    EXPECT_SUGGESTION("SQR", "sqrt");
+    EXPECT_SUGGESTION("sqtr", "sqrt");
+    EXPECT_SUGGESTION("sqroot", "sqrt");
+    EXPECT_SUGGESTION("flor", "floor");
+    EXPECT_SUGGESTION("pie", "pi");
+    EXPECT_SUGGESTION("arcsin", "asin");
+    EXPECT_SUGGESTION("sine", "sin");
+    EXPECT_SUGGESTION("cosine", "cos");
+    EXPECT_SUGGESTION("tangent", "tan");
+    EXPECT_SUGGESTION("absolute", "abs");
+    EXPECT_SUGGESTION("logarithm", "log");
+    EXPECT_SUGGESTION("x", NULL);
+    EXPECT_SUGGESTION("ex", NULL);
+    EXPECT_SUGGESTION("xyz", NULL);
+    EXPECT_SUGGESTION("pow", NULL); /* two edits from "log": too far */
+    EXPECT_SUGGESTION("mod", NULL);
+    EXPECT_SUGGESTION("squareroot", NULL);
+    EXPECT_SUGGESTION("abcdefghijklmnopqrstuvwxyz", NULL);
+    EXPECT(calc_suggest_name(NULL, 3) == NULL);
+    /* Only `length` bytes count, and a known name suggests itself. */
+    EXPECT(calc_suggest_name("sqrt(2)", 4) != NULL &&
+           strcmp(calc_suggest_name("sqrt(2)", 4), "sqrt") == 0);
+}
+
 static void test_nesting_limit(void)
 {
     static char text[4 * CALC_MAX_DEPTH + 16];
@@ -321,9 +470,12 @@ static void test_nesting_limit(void)
 
 static void test_no_negative_zero(void)
 {
-    EXPECT(!signbit(calc_evaluate("-0", 0.0).value));
-    EXPECT(!signbit(calc_evaluate("0 * -1", 0.0).value));
-    EXPECT(!signbit(calc_evaluate("round(-0.4)", 0.0).value));
+    /* copysign rather than signbit, whose macro some libraries (MinGW's)
+     * define in a way that draws -Wconversion warnings. */
+    EXPECT(copysign(1.0, calc_evaluate("-0", 0.0).value) > 0.0);
+    EXPECT(copysign(1.0, calc_evaluate("0 * -1", 0.0).value) > 0.0);
+    EXPECT(copysign(1.0, calc_evaluate("round(-0.4)", 0.0).value) > 0.0);
+    EXPECT(copysign(1.0, -0.0) < 0.0); /* the check itself works */
 }
 
 static void test_format(void)
@@ -396,8 +548,11 @@ static void test_status_messages(void)
         const char *message = calc_status_message(statuses[i]);
 
         EXPECT(message != NULL && message[0] != '\0');
-        for (j = 0; j < i; j++)
-            EXPECT(strcmp(message, calc_status_message(statuses[j])) != 0);
+        for (j = 0; message != NULL && j < i; j++) {
+            const char *other = calc_status_message(statuses[j]);
+
+            EXPECT(other == NULL || strcmp(message, other) != 0);
+        }
     }
     EXPECT(strcmp(calc_status_message((calc_status)99), "unknown error") == 0);
 }
@@ -411,6 +566,10 @@ int main(void)
     test_syntax_errors();
     test_math_errors();
     test_error_precedence();
+    test_friendly_input();
+    test_error_spans();
+    test_name_list();
+    test_suggestions();
     test_nesting_limit();
     test_no_negative_zero();
     test_format();

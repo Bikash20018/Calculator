@@ -7,10 +7,11 @@
 #ifndef CALC_H
 #define CALC_H
 
+#include <stdbool.h>
 #include <stddef.h>
 
-/* Outcome of an evaluation. Every error comes with the offset of the part of
- * the expression that caused it (see calc_result). */
+/* Outcome of an evaluation. Every error comes with the location of the part
+ * of the expression that caused it (see calc_result). */
 typedef enum calc_status {
     CALC_OK = 0,
     CALC_ERR_EMPTY,             /* the expression is empty or all blanks */
@@ -28,11 +29,17 @@ typedef enum calc_status {
     CALC_ERR_RANGE              /* a value too large for a double: 10 ^ 400 */
 } calc_status;
 
+/* When status is not CALC_OK, the error_* fields locate the problem as byte
+ * offsets into the expression: the offending token, where a caret belongs,
+ * and the whole construct involved, which may be underlined. For "8 / 0" the
+ * token is the "/" and the construct is all of "8 / 0". */
 typedef struct calc_result {
     calc_status status;
     double value;        /* the result, when status is CALC_OK */
-    size_t error_offset; /* byte offset of the error in the expression,
-                            when status is not CALC_OK */
+    size_t error_offset; /* start of the offending token */
+    size_t error_length; /* its length; 0 at the end of the expression */
+    size_t error_start;  /* start of the construct, <= error_offset */
+    size_t error_end;    /* end of the construct, >= error_offset + length */
 } calc_result;
 
 /* How many levels deep parentheses, function calls, signs and powers may
@@ -43,6 +50,10 @@ typedef struct calc_result {
 /* Evaluates `expression`, a NUL-terminated string (NULL counts as empty).
  * `ans` is the value the name "ans" stands for, normally the previous result.
  *
+ * Besides ASCII, the expression may use these symbols in UTF-8: U+00D7
+ * MULTIPLICATION SIGN, U+00F7 DIVISION SIGN, U+2212 MINUS SIGN and U+03C0
+ * GREEK SMALL LETTER PI. It may end with "=", as on a pocket calculator.
+ *
  * Syntax errors take precedence over math errors: "1/0 + )" reports the
  * misplaced ")", not the division by zero. Among math errors, the first one
  * in evaluation order is reported. */
@@ -51,6 +62,16 @@ calc_result calc_evaluate(const char *expression, double ans);
 /* Returns a short, human-readable, statically allocated description of
  * `status`, such as "division by zero". */
 const char *calc_status_message(calc_status status);
+
+/* Returns the index-th name that calc_evaluate understands, lowercase, or
+ * NULL when index is past the last one: first the functions, then the
+ * constants. If `is_function` is not NULL, it is set to tell which. */
+const char *calc_name(size_t index, bool *is_function);
+
+/* Returns the known name that the `length` bytes at `word` most likely
+ * misspell ("sqr" gives "sqrt", "sine" gives "sin"), or NULL if no name is
+ * close enough to be a plausible suggestion. */
+const char *calc_suggest_name(const char *word, size_t length);
 
 /* A buffer of this many bytes holds any string calc_format produces. */
 #define CALC_FORMAT_SIZE 32
